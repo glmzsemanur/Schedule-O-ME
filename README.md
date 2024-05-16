@@ -66,3 +66,4 @@
 
 You are free to use, modify, and distribute this software for any purpose without worrying about licensing restrictions.
 Contact: gulmez22@itu.edu.tr
+GitHub: [Schedule-O-ME](https://github.com/glmzsemanur/Schedule-O-ME/tree/main)
