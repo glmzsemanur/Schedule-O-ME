@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import functions
+import subprocess
 
 
 # First start menu
@@ -60,8 +61,9 @@ while True:
                 print("Cannot update without internet connection.")
         input("Press enter to continue with Main Menu.")
     elif inp == "5":
-        try:
-            os.startfile("README.md")
-        except:
-            print("Cannot open file, you can find the Read-ME file in the current directory.")
-
+        result = subprocess.run(["start", "README.md"], shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        if result.returncode == 0:
+            print("Read-ME file has been opened successfully.")
+        else:
+            print("Cannot open file, you may find the Read-ME.md file in the current directory.")
+        input("Press enter to continue with Main Menu.")
