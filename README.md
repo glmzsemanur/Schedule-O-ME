@@ -10,7 +10,7 @@
 -   1. Extract the zip file
     2. Open cmd at the folder of Schedule-O-ME
     3. Run the command below and wait until the installation is done.
-    pip install -r requirements.txt
+    - pip install -r requirements.txt
 - To run Schedule-O-ME, basically double click the Shedule-O-ME.py file.
 ### Usage
 ! You do not need to read this section, Schedule-O-ME will guide you through steps on its own.
@@ -65,5 +65,5 @@
        - To terminate Schedule-O-ME, chose this option. (Enter 0 in the Main Menu.)
 
 You are free to use, modify, and distribute this software for any purpose without worrying about licensing restrictions.
-Contact: gulmez22@itu.edu.tr
-GitHub: [Schedule-O-ME](https://github.com/glmzsemanur/Schedule-O-ME/tree/main)
+- Contact: gulmez22@itu.edu.tr
+- GitHub: [Schedule-O-ME](https://github.com/glmzsemanur/Schedule-O-ME/tree/main)
