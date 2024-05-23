@@ -7,6 +7,10 @@ import sys
 from datetime import datetime, timedelta
 import openpyxl
 
+# Uses extract_options_from_website() for each seviye_list to create the links.
+# Parses the html, finds the table rows, finds the table cells. Turns everything into a dataframe.
+# Creates a folder named scraped_data, saves the dataframe to a today's_date.xlsx file.
+
 
 def get_raw_data(website_url="https://www.sis.itu.edu.tr/EN/student//course-schedules//course-schedules.php?seviye=",
                  seviye_list=['OL', 'LS', 'LU']):
@@ -47,19 +51,7 @@ def get_raw_data(website_url="https://www.sis.itu.edu.tr/EN/student//course-sche
     return
 
 
-def crn(df, c):
-    index = df.index[df.iloc[:, 0] == int(c)].tolist()
-    if index:
-        max_header_len = max(len(header) for header in df.columns)
-        print("########################################")
-        for idx in index:
-            for header, value in zip(df.columns, df.iloc[idx]):
-                padding = max_header_len - len(header) + 2
-                print(f"{header}:{' ' * padding}{value}")
-            print("########################################")
-    else:
-        print("CRN not found")
-
+# Finds the dropdowns in a given html and returns the options inside the dropdown.
 
 def extract_options_from_website(url):
     response = requests.get(url)
@@ -76,6 +68,8 @@ def extract_options_from_website(url):
         print("Failed to fetch webpage:", response.status_code)
         return []
 
+
+# Copies the rows if there are multiple sections within a single row. Splits the sections and returns them as new rows.
 
 def split_sections(df):
     new_rows = []
@@ -104,6 +98,25 @@ def split_sections(df):
     return df
 
 
+# This function uses non-split version of the dataframe.
+# Locates the given CRN and prints the corresponding rows.
+def search_crn(df, c):
+    index = df.index[df.iloc[:, 0] == int(c)].tolist()
+    if index:
+        max_header_len = max(len(header) for header in df.columns)
+        print("########################################")
+        for idx in index:
+            for header, value in zip(df.columns, df.iloc[idx]):
+                padding = max_header_len - len(header) + 2
+                print(f"{header}:{' ' * padding}{value}")
+            print("########################################")
+    else:
+        print("CRN not found")
+
+
+# Rounds up time by 1 minute.
+
+
 def round_up_time(dt):
     if dt.minute == 59:
         dt += timedelta(hours=1)
@@ -113,8 +126,15 @@ def round_up_time(dt):
     return dt
 
 
-def find_empty(df):
-    building_list = df["Building"].unique().tolist()
+# Searches for all the buildings, asks the user to select a building and day. Filters the data, then searches for
+# the available rooms. Creates a dictionary of occupied rooms with their occupied time intervals.
+# Creates another dictionary of unoccupied rooms with their unoccupied time intervals by using the previous dictionary,
+# search range from the user and the function find_unoccupied_intervals().
+# After the creation of unoccupied rooms, if the unoccupied interval is satisfied to the user's input,
+# the interval and the corresponding room is printed out.
+
+def find_empty(df_by_sections):
+    building_list = df_by_sections["Building"].unique().tolist()
     building_list = [building for building in building_list if not building.startswith("-")]
     building_list.sort()
     day_list = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma"]
@@ -136,7 +156,7 @@ def find_empty(df):
             print("Invalid, please try again.")
         else:
             break
-    filtered_df = df[df['Building'] == building]
+    filtered_df = df_by_sections[df_by_sections['Building'] == building]
     rooms = filtered_df["Room"].unique().tolist()
     rooms = [room for room in rooms if not room.startswith("-")]
     filtered_df = filtered_df[(filtered_df["Day"] == day) & (filtered_df["Room"].isin(rooms))]
@@ -168,18 +188,26 @@ def find_empty(df):
             print("Invalid values, please re-enter in desired format.")
     unoccupied_rooms = {room: find_unoccupied_intervals(interval, range_start, range_end) for room, interval
                         in occupied_rooms.items()}
+    found_unoccupied = False
     for room, intervals in unoccupied_rooms.items():
         for interval in intervals:
-            if ((datetime.strptime(interval[1], '%H:%M') - datetime.strptime(interval[0], '%H:%M')).total_seconds() / 60
+            if ((datetime.strptime(interval[1], '%H:%M') -
+                 datetime.strptime(interval[0], '%H:%M')).total_seconds() / 60
                     >= interval_len):
                 print(f"{room:<4} is unoccupied from {interval[0]} to {interval[1]}.")
-    if not unoccupied_rooms:
+                found_unoccupied = True
+    if not found_unoccupied:
         print("No unoccupied rooms are available.")
 
 
+# Creates a list of 30-min long intervals that are inside the search start and end.
+# Checks if those intervals are inside occupied intervals. If not, keeps the 30-min interval.
+# Merges those 30-min intervals and checks if there are repeated ones, and returns the list of intervals.
+
+
 def find_unoccupied_intervals(occupied_intervals, range_start_time, range_end_time):
-    occupied_intervals = [(datetime.strptime(start, '%H:%M'), datetime.strptime(end, '%H:%M')) for start, end in
-                          occupied_intervals]
+    occupied_intervals = [(datetime.strptime(start, '%H:%M'), datetime.strptime(end, '%H:%M'))
+                          for start, end in occupied_intervals]
     possible_intervals = [(range_start_time, range_start_time)]
     current_time = range_start_time
     while current_time < range_end_time:
@@ -200,7 +228,9 @@ def find_unoccupied_intervals(occupied_intervals, range_start_time, range_end_ti
     return [interval for interval in merged_intervals if interval[0] != interval[1]]
 
 
-def fix_instructor(df):
+# Removes doubles spaces that are due to the newline characters inside the table cells.
+
+def fix_double_space(df):
     new_rows = []
     for index, row in df.iterrows():
         new_row = row.copy()
@@ -209,6 +239,13 @@ def fix_instructor(df):
         new_rows.append(new_row)
     return pd.DataFrame(new_rows)
 
+
+# Works in 2 mode, instructor and classroom. Chosen by the user.
+# If instructor is chosen, asks if the user wishes to search for instructor name. Prints the instructors, and takes an
+# instructor name as an input.
+# If classroom is chosen, asks for the building, and then the classroom.
+# Finds the rows that are associated with the instructor/classroom and prints them.
+# Asks if the user wishes to see them in more detailed format, if so calls search_crn()
 
 def find_schedule(df, df_not_split):
     while True:
@@ -260,7 +297,7 @@ def find_schedule(df, df_not_split):
                     b.append(i[0])
                 b = list(set(b))
                 for c in b:
-                    crn(df_not_split, c)
+                    search_crn(df_not_split, c)
         else:
             print("No lecture found.")
         return
@@ -311,4 +348,4 @@ def find_schedule(df, df_not_split):
                     b.append(i[0])
                 b = list(set(b))
                 for c in b:
-                    crn(df_not_split, c)
+                    search_crn(df_not_split, c)
