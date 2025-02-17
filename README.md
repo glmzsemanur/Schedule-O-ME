@@ -1,4 +1,4 @@
-Attention! Currently Out of Date
+## Attention! Currently OUT OF DATE
 ## Schedule-O-ME
 ### Description
 - Schedule-O-ME is designed for students who are seeking unoccupied classrooms to study in silence.
